@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>감정일기 — 오늘 나의 감정은?</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ===== 기본 리셋 ===== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #F7F4EF;
+  --surface: #FFFFFF;
+  --text-primary: #1A1A1A;
+  --text-secondary: #6B6B6B;
+  --text-light: #ABABAB;
+  --border: #E8E4DE;
+  --radius: 16px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.07);
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===== 헤더 ===== */
+header {
+  width: 100%;
+  max-width: 640px;
+  padding: 24px 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; color: var(--text-primary); }
+.step-indicator {
+  display: flex; gap: 6px; align-items: center;
+}
+.step-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--border); transition: all 0.3s;
+}
+.step-dot.active { background: var(--text-primary); width: 20px; border-radius: 3px; }
+.step-dot.done { background: #A8C5A0; }
+
+/* ===== 메인 컨테이너 ===== */
+main {
+  width: 100%;
+  max-width: 640px;
+  padding: 24px 20px 40px;
+  flex: 1;
+}
+
+/* ===== 스텝 패널 ===== */
+.step-panel { display: none; animation: fadeUp 0.4s ease; }
+.step-panel.active { display: block; }
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(16px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+.step-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--text-light); text-transform: uppercase; margin-bottom: 8px;
+}
+.step-title {
+  font-size: 22px; font-weight: 700; line-height: 1.35;
+  margin-bottom: 6px; letter-spacing: -0.5px;
+}
+.step-desc {
+  font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;
+}
+
+/* ===== 카드 (공용) ===== */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+/* ===== STEP 1: 상황 입력 ===== */
+.situation-textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background: transparent;
+  min-height: 140px;
+}
+.situation-textarea::placeholder { color: var(--text-light); }
+.char-count { font-size: 11px; color: var(--text-light); text-align: right; margin-top: 8px; }
+
+.quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.quick-tag {
+  padding: 6px 14px; border-radius: 20px;
+  border: 1px solid var(--border);
+  font-size: 12px; cursor: pointer;
+  background: var(--surface); color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.quick-tag:hover, .quick-tag.selected {
+  background: var(--text-primary); color: white; border-color: var(--text-primary);
+}
+
+/* ===== STEP 2: 감정 선택 ===== */
+.cat-tabs {
+  display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto;
+  padding-bottom: 4px; scrollbar-width: none;
+}
+.cat-tabs::-webkit-scrollbar { display: none; }
+.cat-tab {
+  padding: 7px 16px; border-radius: 20px; border: 1px solid var(--border);
+  font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  background: var(--surface); color: var(--text-secondary); transition: all 0.2s;
+  font-family: inherit;
+}
+.cat-tab.active { background: var(--text-primary); color: white; border-color: var(--text-primary); }
+
+.emotion-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+.emotion-btn {
+  aspect-ratio: 1; border-radius: 12px; border: 2px solid transparent;
+  cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  transition: all 0.2s; font-family: inherit;
+}
+.emotion-btn:hover { transform: scale(1.05); }
+.emotion-btn.selected { border-color: var(--text-primary); transform: scale(1.05); box-shadow: 0 0 0 3px rgba(0,0,0,0.08); }
+.emotion-btn .e-name { font-size: 11px; font-weight: 700; color: #1a1a1a; }
+.emotion-btn .e-cat  { font-size: 9px; color: #888; }
+
+/* ===== STEP 3: 감정 카드 상세 ===== */
+.emotion-card-detail {
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.ecd-header {
+  padding: 20px; display: flex; align-items: center; justify-content: space-between;
+}
+.ecd-name { font-size: 24px; font-weight: 700; color: #1a1a1a; }
+.ecd-cat  { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
+.ecd-body { background: white; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.ecd-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--text-light); text-transform: uppercase; margin-bottom: 4px;
+}
+.ecd-section-text { font-size: 13px; color: var(--text-primary); line-height: 1.6; }
+.ecd-divider { height: 1px; background: var(--border); }
+.cbt-row { display: flex; gap: 10px; align-items: flex-start; }
+.cbt-num { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.cbt-inner {}
+.cbt-method { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+.cbt-desc   { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+/* ===== STEP 3 입력란 ===== */
+.input-group { margin-bottom: 14px; }
+.input-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--text-secondary); margin-bottom: 6px; display: block;
+}
+.input-field {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; font-family: inherit; font-size: 13px;
+  color: var(--text-primary); background: var(--surface);
+  outline: none; resize: none; transition: border-color 0.2s;
+}
+.input-field:focus { border-color: #888; }
+
+/* ===== 점수 슬라이더 (STEP 4) ===== */
+.score-display {
+  text-align: center; margin: 20px 0;
+}
+.score-number {
+  font-size: 64px; font-weight: 700; line-height: 1;
+  transition: color 0.3s;
+}
+.score-label { font-size: 13px; color: var(--text-secondary); margin-top: 6px; }
+.slider-wrap { position: relative; margin: 16px 0; }
+input[type=range] {
+  width: 100%; height: 6px; border-radius: 3px;
+  appearance: none; background: var(--border); outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  appearance: none; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.slider-labels {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-light); margin-top: 6px;
+}
+
+.memo-area {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; font-family: inherit; font-size: 13px;
+  color: var(--text-primary); background: var(--surface);
+  outline: none; resize: none; min-height: 80px; transition: border-color 0.2s;
+}
+.memo-area:focus { border-color: #888; }
+
+/* ===== STEP 5: 완료 ===== */
+.complete-wrap { text-align: center; padding: 40px 0; }
+.complete-emoji { font-size: 56px; margin-bottom: 20px; }
+.complete-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.complete-desc  { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 32px; }
+.summary-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 20px; text-align: left; box-shadow: var(--shadow);
+}
+.summary-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.summary-row:last-child { border-bottom: none; }
+.summary-key { font-size: 11px; font-weight: 700; color: var(--text-light); width: 70px; flex-shrink: 0; padding-top: 1px; }
+.summary-val { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+
+/* ===== 버튼 ===== */
+.btn-wrap { display: flex; gap: 10px; margin-top: 24px; }
+.btn {
+  flex: 1; padding: 15px; border-radius: 12px; font-family: inherit;
+  font-size: 14px; font-weight: 700; cursor: pointer; border: none;
+  transition: all 0.2s;
+}
+.btn-primary { background: var(--text-primary); color: white; }
+.btn-primary:hover { background: #333; transform: translateY(-1px); }
+.btn-primary:disabled { background: var(--border); color: var(--text-light); cursor: not-allowed; transform: none; }
+.btn-secondary {
+  background: var(--surface); color: var(--text-secondary);
+  border: 1.5px solid var(--border); flex: 0 0 auto; padding: 15px 20px;
+}
+.btn-secondary:hover { border-color: #888; }
+.btn-restart { background: var(--surface); color: var(--text-primary); border: 1.5px solid var(--border); margin-top: 12px; width: 100%; }
+.btn-restart:hover { background: var(--bg); }
+
+/* ===== 토스트 ===== */
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 30px;
+  font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 999;
+  white-space: nowrap;
+}
+.toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
+
+/* ===== 반응형 ===== */
+@media (max-width: 480px) {
+  .emotion-grid { grid-template-columns: repeat(3, 1fr); }
+  .step-title { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">🌱 감정일기</span>
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot0"></div>
+    <div class="step-dot" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+    <div class="step-dot" id="dot4"></div>
+  </div>
+</header>
+
+<main>
+
+<!-- ====== STEP 1: 상황 ====== -->
+<div class="step-panel active" id="step0">
+  <p class="step-label">Step 1 / 5</p>
+  <h1 class="step-title">오늘 어떤 일이<br>있었나요?</h1>
+  <p class="step-desc">지금 이 감정을 불러온 상황을 자유롭게 적어보세요.</p>
+  <div class="card">
+    <textarea class="situation-textarea" id="situationText"
+      placeholder="예) 발표를 준비했는데 교수님이 내 의견을 무시하는 것 같았다..."
+      maxlength="300" oninput="updateChar()"></textarea>
+    <div class="char-count"><span id="charCount">0</span>/300</div>
+  </div>
+  <p style="font-size:12px;color:var(--text-light);margin:16px 0 8px;">빠르게 선택하기</p>
+  <div class="quick-tags">
+    <span class="quick-tag" onclick="quickTag(this,'학교·과제 관련')">📚 학교·과제</span>
+    <span class="quick-tag" onclick="quickTag(this,'친구·관계 문제')">👥 친구·관계</span>
+    <span class="quick-tag" onclick="quickTag(this,'가족과의 갈등')">🏠 가족</span>
+    <span class="quick-tag" onclick="quickTag(this,'진로·미래 고민')">🔮 진로·미래</span>
+    <span class="quick-tag" onclick="quickTag(this,'혼자만의 시간')">🌙 혼자만의 시간</span>
+    <span class="quick-tag" onclick="quickTag(this,'기타 일상')">☕ 일상</span>
+  </div>
+  <div class="btn-wrap">
+    <button class="btn btn-primary" onclick="goStep(1)" id="btn0">다음 →</button>
+  </div>
+</div>
+
+<!-- ====== STEP 2: 감정 선택 ====== -->
+<div class="step-panel" id="step1">
+  <p class="step-label">Step 2 / 5</p>
+  <h1 class="step-title">지금 이 감정,<br>뭔지 고를 수 있나요?</h1>
+  <p class="step-desc">가장 가깝게 느껴지는 감정을 하나 선택해 주세요.</p>
+
+  <div class="cat-tabs">
+    <button class="cat-tab active" onclick="filterCat('전체',this)">전체</button>
+    <button class="cat-tab" onclick="filterCat('긍정',this)">긍정 😊</button>
+    <button class="cat-tab" onclick="filterCat('부정',this)">부정 😔</button>
+    <button class="cat-tab" onclick="filterCat('중립',this)">중립 😐</button>
+  </div>
+
+  <div class="emotion-grid" id="emotionGrid"></div>
+
+  <div class="btn-wrap" style="margin-top:20px">
+    <button class="btn btn-secondary" onclick="goStep(0)">← 이전</button>
+    <button class="btn btn-primary" onclick="goStep(2)" id="btn1" disabled>다음 →</button>
+  </div>
+</div>
+
+<!-- ====== STEP 3: 감정 카드 + 내 반응 입력 ====== -->
+<div class="step-panel" id="step2">
+  <p class="step-label">Step 3 / 5</p>
+  <h1 class="step-title">이 감정을<br>자세히 들여다봐요</h1>
+  <p class="step-desc">카드를 확인하고, 내가 실제로 어떻게 반응했는지 적어보세요.</p>
+
+  <div class="emotion-card-detail" id="emotionCardDetail"></div>
+
+  <div style="margin-top:20px;">
+    <div class="input-group">
+      <label class="input-label">💭 지금 어떤 생각이 드나요?</label>
+      <textarea class="input-field" id="thoughtInput" rows="2" placeholder="예) 나는 무능한 사람인 것 같아..."></textarea>
+    </div>
+    <div class="input-group">
+      <label class="input-label">🤸 실제로 어떻게 행동했나요?</label>
+      <textarea class="input-field" id="actionInput" rows="2" placeholder="예) 방에 들어와서 혼자 있었다..."></textarea>
+    </div>
+    <div class="input-group">
+      <label class="input-label">😶 얼굴표정과 몸의 반응은?</label>
+      <textarea class="input-field" id="faceInput" rows="2" placeholder="예) 눈물이 날 것 같았고 어깨가 처졌다..."></textarea>
+    </div>
+    <div class="input-group">
+      <label class="input-label">💓 신체감각은?</label>
+      <textarea class="input-field" id="bodyInput" rows="2" placeholder="예) 가슴이 답답하고 숨이 얕아졌다..."></textarea>
+    </div>
+  </div>
+
+  <div class="btn-wrap">
+    <button class="btn btn-secondary" onclick="goStep(1)">← 이전</button>
+    <button class="btn btn-primary" onclick="goStep(3)">다음 →</button>
+  </div>
+</div>
+
+<!-- ====== STEP 4: 감정 인식 점수 + 메모 ====== -->
+<div class="step-panel" id="step3">
+  <p class="step-label">Step 4 / 5</p>
+  <h1 class="step-title">지금 감정을<br>얼마나 인식했나요?</h1>
+  <p class="step-desc">0 = 전혀 몰랐다, 10 = 완전히 알아챘다</p>
+
+  <div class="card">
+    <div class="score-display">
+      <div class="score-number" id="scoreNumber">5</div>
+      <div class="score-label" id="scoreLabel">보통이에요</div>
+    </div>
+    <div class="slider-wrap">
+      <input type="range" id="scoreSlider" min="0" max="10" value="5"
+             oninput="updateScore(this.value)" style="accent-color: #1a1a1a;">
+    </div>
+    <div class="slider-labels">
+      <span>0 전혀 몰랐다</span>
+      <span>5 조금 알아챘다</span>
+      <span>10 완전히 알아챘다</span>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;">
+    <label class="input-label">📝 오늘 이 감정에 대해 하고 싶은 말 (선택)</label>
+    <textarea class="memo-area" id="memoInput" placeholder="자유롭게 적어도 좋아요..."></textarea>
+  </div>
+
+  <div class="btn-wrap">
+    <button class="btn btn-secondary" onclick="goStep(2)">← 이전</button>
+    <button class="btn btn-primary" onclick="submitDiary()">제출하기 ✓</button>
+  </div>
+</div>
+
+<!-- ====== STEP 5: 완료 ====== -->
+<div class="step-panel" id="step4">
+  <div class="complete-wrap">
+    <div class="complete-emoji">🌿</div>
+    <div class="complete-title">오늘도 잘 했어요</div>
+    <div class="complete-desc">
+      내 감정을 들여다보는 것만으로도<br>
+      이미 충분히 용감한 일이에요.
+    </div>
+    <div class="summary-card" id="summaryCard"></div>
+    <button class="btn btn-restart" onclick="restart()">🔄 새로 작성하기</button>
+  </div>
+</div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// 📋 감정 데이터 (30개)
+// =============================================
+const EMOTIONS = [
+  {name:"즐거움",cat:"긍정",color:"#FAC775",light:"#FEF8E8",
+   sit:"친구들과 보드게임 중 예상치 못한 역전승을 거둠",
+   act:"손뼉 치고 몸을 앞뒤로 흔들며 소리 내어 웃음",
+   face:"눈이 반달 모양, 입꼬리가 양쪽으로 올라감",
+   c1t:"행동 활성화",c1:"즐거운 활동 목록을 미리 만들어 의도적으로 실행하기",
+   c2t:"음미하기",c2:"이 순간을 천천히 느끼고 감사 일기에 기록하기",
+   exp:"'나 지금 진짜 기분 좋아!'라고 말하거나 함께 나누기"},
+  {name:"행복",cat:"긍정",color:"#FAC775",light:"#FEF8E8",
+   sit:"좋아하는 카페 창가에서 따뜻한 음료를 두 손으로 감싸 쥠",
+   act:"부드럽게 미소 지으며 창밖을 천천히 바라봄",
+   face:"눈이 부드럽게 이완되고 입꼬리가 살며시 올라감",
+   c1t:"강점 인식",c1:"지금 행복에 기여한 나의 강점을 찾아 적어보기",
+   c2t:"감사 일기",c2:"매일 감사한 것 3가지를 구체적으로 기록하기",
+   exp:"고마운 사람에게 오늘 안에 직접 표현하기"},
+  {name:"열광",cat:"긍정",color:"#FAC775",light:"#FEF8E8",
+   sit:"좋아하는 공연에서 예상치 못한 최고의 순간을 맞이함",
+   act:"박수치고 소리 지르며 온몸에 에너지가 넘침",
+   face:"눈이 크게 뜨이고 입이 환하게 벌어짐",
+   c1t:"에너지 방향 설정",c1:"이 열광 에너지를 생산적인 목표에 연결해보기",
+   c2t:"신체 조절",c2:"흥분이 너무 클 때 복식호흡으로 조금 낮추기",
+   exp:"함께 있는 사람과 직접 공유하기"},
+  {name:"관심",cat:"긍정",color:"#9FE1CB",light:"#E8F8F3",
+   sit:"새로운 주제나 사람이 내 주의를 강하게 끌 때",
+   act:"몸을 앞으로 기울이고 질문을 자주 함",
+   face:"눈이 약간 커지고 고개를 살짝 기울임",
+   c1t:"탐색 행동",c1:"관심 대상에 대해 더 알아보는 구체적 행동 하나 하기",
+   c2t:"가치 연결",c2:"이 관심이 나의 가치와 어떻게 연결되는지 확인하기",
+   exp:"질문으로 표현하기: '나 이게 정말 궁금해'"},
+  {name:"애정",cat:"긍정",color:"#9FE1CB",light:"#E8F8F3",
+   sit:"소중한 사람이 떠오르거나 함께 있을 때",
+   act:"다가가거나 안아주고 싶고 말투가 부드러워짐",
+   face:"부드러운 눈빛과 따뜻한 미소",
+   c1t:"연결 행동",c1:"애정을 느끼는 사람에게 오늘 한 가지 표현하기",
+   c2t:"관계 강화",c2:"상대의 좋은 점을 구체적으로 말로 전하기",
+   exp:"따뜻한 말과 작은 친절 행동으로 표현하기"},
+  {name:"만족",cat:"긍정",color:"#5DCAA5",light:"#E1F5EE",
+   sit:"오래 미뤄온 과제를 드디어 제출하고 노트북을 덮음",
+   act:"등받이에 기대며 크게 숨을 내쉬고 몸의 긴장을 뺌",
+   face:"눈을 살짝 감고 잔잔하게 미소 지음",
+   c1t:"성취 확인",c1:"무엇이 이 만족을 만들었는지 구체적으로 적기",
+   c2t:"음미하기",c2:"이 감각을 30초 이상 천천히 느끼기",
+   exp:"조용히 일기에 기록하거나 신뢰하는 사람과 나누기"},
+  {name:"시원함",cat:"긍정",color:"#5DCAA5",light:"#E1F5EE",
+   sit:"오래 걱정했던 일이 드디어 마무리됨",
+   act:"숨을 길게 내쉬며 몸의 긴장이 확 풀림",
+   face:"눈을 살짝 감고 편안하게 내쉬는 표정",
+   c1t:"완료 체크",c1:"해낸 것을 목록으로 적어 성취감 확인하기",
+   c2t:"자기보상",c2:"완료 후 스스로에게 작은 보상 주기",
+   exp:"'드디어 끝났다' 말하며 잠시 쉬기"},
+  {name:"답답함",cat:"부정",color:"#F5C4B3",light:"#FDF0EA",
+   sit:"내 말이 전달되지 않고 상황이 뜻대로 안 될 때",
+   act:"한숨 쉬고 말이 빨라지며 가슴이 답답하게 조여옴",
+   face:"미간에 주름이 지고 입술을 꾹 다물거나 한숨",
+   c1t:"인지 재구조화",c1:"'통제할 수 없는 것'과 '할 수 있는 것'을 분리해 적기",
+   c2t:"스트레스 방출",c2:"빠르게 걷거나 심호흡으로 신체 긴장 풀기",
+   exp:"나-전달법: '나는 ~할 때 답답해'"},
+  {name:"화",cat:"부정",color:"#F5C4B3",light:"#FDF0EA",
+   sit:"내 노력이 인정받지 못하고 일방적인 지시를 받음",
+   act:"주먹을 쥐고 몸에 힘이 들어가며 목소리가 커짐",
+   face:"눈썹이 아래로 내려가고 이를 악물거나 턱에 힘",
+   c1t:"타임아웃",c1:"자리를 잠시 벗어나 10분 후 돌아오기",
+   c2t:"ABC 분석",c2:"선행사건→믿음→결과 순서로 화의 원인 써보기",
+   exp:"나-전달법: '네가 ~했을 때 나는 화가 났어'"},
+  {name:"무서움",cat:"부정",color:"#CECBF6",light:"#F0EFFE",
+   sit:"밤에 혼자 걷다가 갑자기 인기척이 느껴짐",
+   act:"어깨를 움츠리고 발걸음을 멈추며 뒤를 살핌",
+   face:"눈이 커지고 눈썹이 올라가며 입이 살짝 벌어짐",
+   c1t:"인지 재구조화",c1:"최악-현실-최선 시나리오를 각각 적어보기",
+   c2t:"점진적 노출",c2:"두려운 것에 작은 단계부터 차근차근 접근하기",
+   exp:"'나 사실 이게 좀 무서워'라고 솔직하게 말하기"},
+  {name:"소름",cat:"부정",color:"#CECBF6",light:"#F0EFFE",
+   sit:"갑작스럽고 낯선 위협이나 충격을 느낄 때",
+   act:"소름이 돋고 몸이 굳거나 피하려 함",
+   face:"눈이 커지고 입이 살짝 벌어짐",
+   c1t:"안전 확인",c1:"실제로 위험한지 상황 사실 확인하기",
+   c2t:"접지 기법",c2:"5-4-3-2-1 감각 기법으로 현재로 돌아오기",
+   exp:"신뢰하는 사람에게 '나 좀 무서웠어'라고 말하기"},
+  {name:"놀람",cat:"부정",color:"#B5D4F4",light:"#E9F3FD",
+   sit:"생일인 줄 몰랐는데 친구들이 깜짝 파티를 준비해줌",
+   act:"두 손을 입 앞에 가져가며 뒤로 한 발짝 물러남",
+   face:"눈과 입이 크게 벌어지고 눈썹이 위로 올라감",
+   c1t:"상황 재평가",c1:"놀람 후 실제로 위협인지 아닌지 확인하기",
+   c2t:"호흡 조절",c2:"4-4-6 호흡으로 긴장 빠르게 낮추기",
+   exp:"'방금 너무 깜짝 놀랐어'라고 바로 말하기"},
+  {name:"당황",cat:"부정",color:"#B5D4F4",light:"#E9F3FD",
+   sit:"발표 중 갑자기 말이 막히고 모두가 나를 바라봄",
+   act:"손으로 머리를 긁으며 눈을 이리저리 굴림",
+   face:"얼굴이 빨개지고 눈을 아래로 내리깜",
+   c1t:"탈중심화",c1:"'나만큼 이 순간을 신경 쓰는 사람은 많지 않다' 상기",
+   c2t:"자기연민",c2:"스스로에게 친구에게 하듯 다정하게 말해주기",
+   exp:"'잠깐, 당황해서 정리가 필요해'라고 말하기"},
+  {name:"슬픔",cat:"부정",color:"#D3D1C7",light:"#F2F1EE",
+   sit:"소중한 관계가 어느 순간 멀어졌다는 것을 느낌",
+   act:"무릎을 세우고 고개를 살짝 숙이고 조용히 있음",
+   face:"눈썹 안쪽이 올라가고 눈물이 맺히며 입꼬리가 내려감",
+   c1t:"애도 허용",c1:"슬픔을 억누르지 않고 5분 동안 충분히 느끼기",
+   c2t:"행동 활성화",c2:"기분이 나아질 수 있는 작은 활동 하나 하기",
+   exp:"'나 지금 슬퍼'라고 말하거나 신뢰하는 사람과 이야기하기"},
+  {name:"억울함",cat:"부정",color:"#D3D1C7",light:"#F2F1EE",
+   sit:"나의 노력이나 의도가 인정받지 못하거나 오해받을 때",
+   act:"해명하고 싶거나 눈물이 나거나 침묵함",
+   face:"입술을 악물고 눈물이 맺힘",
+   c1t:"사실 정리",c1:"실제 있었던 사실과 내 감정을 구분해서 적기",
+   c2t:"주장적 표현",c2:"나-전달법으로 억울함을 침착하게 전달하기",
+   exp:"'나는 ~한 상황이 억울해'라고 구체적으로 말하기"},
+  {name:"혼란",cat:"부정",color:"#D3D1C7",light:"#F2F1EE",
+   sit:"여러 감정이 동시에 오거나 상황이 복잡하게 얽힐 때",
+   act:"멍하거나 결정을 못 내리고 서성임",
+   face:"눈이 초점을 잃고 미간에 살짝 주름",
+   c1t:"감정 목록화",c1:"지금 느끼는 감정들을 전부 종이에 나열하기",
+   c2t:"우선순위",c2:"가장 강한 감정 하나를 골라 먼저 집중하기",
+   exp:"'나 지금 여러 감정이 섞여서 복잡해'라고 말하기"},
+  {name:"좌절",cat:"부정",color:"#F4C0D1",light:"#FDF0F5",
+   sit:"열심히 했는데 원하는 결과가 나오지 않을 때",
+   act:"포기하고 싶거나 노력이 무의미하게 느껴짐",
+   face:"눈썹이 처지고 한숨, 눈 맞춤을 피함",
+   c1t:"과정 재평가",c1:"결과와 별개로 내가 성장한 부분을 찾아보기",
+   c2t:"목표 수정",c2:"현실적인 작은 목표로 나누어 다시 계획하기",
+   exp:"'이번엔 기대한 만큼 안 됐어'라고 솔직하게 말하기"},
+  {name:"부끄러움",cat:"부정",color:"#F4C0D1",light:"#FDF0F5",
+   sit:"창피한 일이 드러나거나 자신이 부족하게 느껴질 때",
+   act:"얼굴이 빨개지고 시선을 피하며 몸을 숨기려 함",
+   face:"얼굴이 붉어지고 시선을 아래로",
+   c1t:"수치심 해독",c1:"'이 실수가 나의 전부를 정의하지 않는다'고 말하기",
+   c2t:"보편성 인식",c2:"누구나 실수한다는 것을 떠올리기",
+   exp:"신뢰하는 사람에게 '나 좀 창피했어'라고 털어놓기"},
+  {name:"미움",cat:"부정",color:"#F09595",light:"#FDEAEA",
+   sit:"반복적으로 상처 준 사람이나 불공정한 상황에서",
+   act:"피하거나 날카롭게 반응하고 싶음",
+   face:"눈썹이 내려가고 입술이 삐죽",
+   c1t:"경계 설정",c1:"이 감정이 신호하는 나의 경계를 파악하고 표현하기",
+   c2t:"분리하기",c2:"사람 자체가 아닌 그 행동에 초점 맞추기",
+   exp:"직접 충돌 전에 감정 일기로 먼저 정리하기"},
+  {name:"역겨움",cat:"부정",color:"#F09595",light:"#FDEAEA",
+   sit:"가치관에 반하는 것을 보거나 불결함을 느낄 때",
+   act:"고개를 돌리거나 자리를 피함",
+   face:"코가 찌푸려지고 윗입술이 살짝 올라감",
+   c1t:"자극 제거",c1:"가능한 경우 자극에서 물리적으로 거리 두기",
+   c2t:"가치 확인",c2:"이 감정이 내 어떤 가치를 지키려는 신호인지 확인",
+   exp:"'이건 나에게 맞지 않아'라고 명확하게 말하기"},
+  {name:"연민",cat:"부정",color:"#F4C0D1",light:"#FDF0F5",
+   sit:"어려운 상황에 처한 사람을 가까이서 볼 때",
+   act:"도와주고 싶거나 마음이 무거워짐",
+   face:"눈썹 안쪽이 올라가고 눈빛이 부드러워짐",
+   c1t:"경계 인식",c1:"내가 도울 수 있는 것과 없는 것 구분하기",
+   c2t:"자기연민 병행",c2:"타인을 걱정하면서 나 자신도 함께 돌보기",
+   exp:"'많이 힘들겠다, 내가 도울 수 있는 게 있을까?'"},
+  {name:"괴로움",cat:"부정",color:"#D3D1C7",light:"#F2F1EE",
+   sit:"해결이 안 되는 상황이 지속되며 몸과 마음이 지침",
+   act:"몸이 무겁고 아무것도 하기 싫음",
+   face:"눈 밑이 처지고 표정이 굳어 있음",
+   c1t:"자기돌봄",c1:"지금 당장 몸을 편하게 할 수 있는 한 가지 하기",
+   c2t:"전문가 연결",c2:"혼자 감당이 어려울 때 주변에 도움 요청하기",
+   exp:"'나 지금 많이 힘들어'라고 솔직하게 말하기"},
+  {name:"갈망",cat:"중립",color:"#C0DD97",light:"#EDF6DC",
+   sit:"간절히 원하는 것이 있는데 아직 손에 닿지 않을 때",
+   act:"집중력이 그쪽으로 쏠리고 기다림이 힘듦",
+   face:"눈이 앞을 향하고 입술을 살짝 깨묾",
+   c1t:"목표 행동화",c1:"갈망하는 것에 오늘 할 수 있는 가장 작은 행동 하기",
+   c2t:"충동 파도타기",c2:"충동을 파도처럼 관찰하며 지나가게 하기",
+   exp:"'나는 지금 ~가 정말 원해'라고 구체적으로 표현하기"},
+  {name:"욕심",cat:"중립",color:"#C0DD97",light:"#EDF6DC",
+   sit:"더 잘하고 싶고 더 많이 갖고 싶은 마음이 올라올 때",
+   act:"더 많은 것을 얻으려고 계획하거나 비교하게 됨",
+   face:"눈빛이 날카로워지고 집중된 표정",
+   c1t:"가치 점검",c1:"이 욕심이 내 진짜 가치와 맞는지 확인하기",
+   c2t:"충분함 연습",c2:"지금 가진 것을 확인하고 음미하기",
+   exp:"'나는 ~을 더 원하는구나'라고 인식하고 기록하기"},
+  {name:"고요",cat:"중립",color:"#C0DD97",light:"#EDF6DC",
+   sit:"아무것도 하지 않아도 편안하고 충분한 느낌일 때",
+   act:"느리고 안정된 호흡, 긴장 없는 몸",
+   face:"눈이 부드럽게 이완되고 자연스러운 표정",
+   c1t:"마음챙김",c1:"이 순간의 고요함을 의식적으로 알아차리고 음미하기",
+   c2t:"자원 확인",c2:"무엇이 이 고요함을 만들었는지 기억해두기",
+   exp:"조용히 일기에 기록하거나 그냥 온전히 느끼기"},
+  {name:"안도",cat:"중립",color:"#C0DD97",light:"#EDF6DC",
+   sit:"걱정했던 일이 잘 해결되거나 위협이 사라질 때",
+   act:"눈을 감으며 크게 숨을 내쉬고 어깨의 힘을 뺌",
+   face:"눈을 살짝 감고 입꼬리가 부드럽게 올라감",
+   c1t:"긍정 강화",c1:"이 안도를 만든 자신의 행동이나 판단 인정하기",
+   c2t:"학습하기",c2:"'앞으로 이런 상황에 어떻게 대비할까' 메모하기",
+   exp:"'다행이다'라고 말하거나 감사 표현하기"},
+  {name:"어색함",cat:"중립",color:"#B4B2A9",light:"#EEEEE9",
+   sit:"낯선 상황이나 사람 앞에서 어떻게 행동할지 모를 때",
+   act:"말이 줄거나 어색한 웃음, 몸이 굳음",
+   face:"억지 미소, 눈을 여기저기 피함",
+   c1t:"사실 확인",c1:"'이 어색함은 자연스러운 것이다'라고 자신에게 말하기",
+   c2t:"소소한 행동",c2:"쉬운 것부터 시작하기 (먼저 인사, 질문 하나)",
+   exp:"'나 좀 낯설어서 어색해'라고 솔직하게 말해도 OK"},
+  {name:"궁금함",cat:"중립",color:"#B4B2A9",light:"#EEEEE9",
+   sit:"모르는 것이 생기거나 새로운 것을 발견할 때",
+   act:"질문을 많이 하거나 정보를 찾아보려 함",
+   face:"눈썹이 살짝 올라가고 고개를 기울임",
+   c1t:"탐색 행동",c1:"궁금한 것에 대해 구체적인 질문 하나 만들기",
+   c2t:"학습 연결",c2:"이 궁금함을 내 목표나 흥미와 연결하기",
+   exp:"'이게 궁금한데 알려줄 수 있어?'라고 직접 묻기"},
+  {name:"감동",cat:"중립",color:"#9FE1CB",light:"#E8F8F3",
+   sit:"예상치 못하게 배려 받거나 아름다운 것을 경험할 때",
+   act:"눈물이 살짝 맺히거나 가슴이 따뜻해짐",
+   face:"눈이 촉촉해지고 입꼬리가 부드럽게 올라감",
+   c1t:"감사 표현",c1:"감동을 준 상대에게 구체적으로 감사 전하기",
+   c2t:"음미하기",c2:"이 감동을 잠시 충분히 느끼기",
+   exp:"'이거 정말 감동이었어'라고 솔직하게 표현하기"},
+  {name:"아쉬움",cat:"중립",color:"#B4B2A9",light:"#EEEEE9",
+   sit:"원하던 것이 아깝게 이루어지지 않을 때",
+   act:"멈추거나 한숨을 쉬며 아쉬운 눈빛",
+   face:"눈썹이 살짝 내려가고 입술이 삐죽",
+   c1t:"수용하기",c1:"'이번엔 안 됐지만 다음 기회가 있다'고 말하기",
+   c2t:"학습 전환",c2:"이번 경험에서 배울 수 있는 것 찾기",
+   exp:"'너무 아쉽다'라고 솔직하게 말하기"},
+  {name:"허무",cat:"중립",color:"#888780",light:"#E8E8E5",
+   sit:"오랫동안 바랐던 것을 이루고 나서 공허함을 느낄 때",
+   act:"멍하거나 의욕이 사라지고 조용해짐",
+   face:"눈이 초점을 잃고 표정이 무뎌짐",
+   c1t:"가치 재탐색",c1:"지금 나에게 진정으로 의미 있는 것 다시 찾기",
+   c2t:"다음 목표 설정",c2:"이 감정을 새로운 방향 탐색의 신호로 삼기",
+   exp:"'뭔가 허전한 것 같아'라고 솔직하게 말하기"},
+];
+
+// =============================================
+// ⚙️ 구글 시트 연동 URL
+// (Google Apps Script 배포 후 여기에 URL 붙여넣기)
+// =============================================
+const GOOGLE_SHEET_URL = "여기에_구글시트_URL을_붙여넣으세요";
+
+// =============================================
+// 📦 상태 관리
+// =============================================
+let state = {
+  step: 0,
+  situation: '',
+  emotion: null,
+  thought: '', action2: '', face2: '', body: '',
+  score: 5, memo: ''
+};
+let currentCat = '전체';
+
+// =============================================
+// 🎨 감정 그리드 렌더링
+// =============================================
+function renderGrid(cat) {
+  const grid = document.getElementById('emotionGrid');
+  const filtered = cat === '전체' ? EMOTIONS : EMOTIONS.filter(e => e.cat === cat);
+  grid.innerHTML = filtered.map(e => `
+    <button class="emotion-btn ${state.emotion && state.emotion.name === e.name ? 'selected' : ''}"
+      style="background:${e.light}"
+      onclick="selectEmotion('${e.name}')">
+      <span style="font-size:20px">${catEmoji(e.cat)}</span>
+      <span class="e-name">${e.name}</span>
+    </button>
+  `).join('');
+}
+
+function catEmoji(cat) {
+  return cat === '긍정' ? '😊' : cat === '부정' ? '😔' : '😐';
+}
+
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid(cat);
+}
+
+function selectEmotion(name) {
+  state.emotion = EMOTIONS.find(e => e.name === name);
+  renderGrid(currentCat);
+  document.getElementById('btn1').disabled = false;
+}
+
+// =============================================
+// 📝 감정 카드 상세 렌더링
+// =============================================
+function renderEmotionCard(e) {
+  const catColors = {긍정:'#E8F5E9',부정:'#FCE4EC',중립:'#E3F2FD'};
+  const catTextColors = {긍정:'#2E7D32',부정:'#880E4F',중립:'#1565C0'};
+  document.getElementById('emotionCardDetail').innerHTML = `
+    <div class="ecd-header" style="background:${e.color}">
+      <span class="ecd-name">${e.name}</span>
+      <span class="ecd-cat" style="background:${catColors[e.cat]};color:${catTextColors[e.cat]}">${e.cat}</span>
+    </div>
+    <div class="ecd-body">
+      <div>
+        <div class="ecd-section-label">📌 보통 이럴 때 와요</div>
+        <div class="ecd-section-text">${e.sit}</div>
+      </div>
+      <div class="ecd-divider"></div>
+      <div>
+        <div class="ecd-section-label">🤸 이런 행동을 하게 돼요</div>
+        <div class="ecd-section-text">${e.act}</div>
+      </div>
+      <div class="ecd-divider"></div>
+      <div>
+        <div class="ecd-section-label">😶 얼굴표정</div>
+        <div class="ecd-section-text">${e.face}</div>
+      </div>
+      <div class="ecd-divider"></div>
+      <div>
+        <div class="ecd-section-label">🧠 CBT 대처법</div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:10px">
+          <div class="cbt-row">
+            <span class="cbt-num" style="color:${e.color}">①</span>
+            <div class="cbt-inner">
+              <div class="cbt-method">${e.c1t}</div>
+              <div class="cbt-desc">${e.c1}</div>
+            </div>
+          </div>
+          <div class="cbt-row">
+            <span class="cbt-num" style="color:${e.color}">②</span>
+            <div class="cbt-inner">
+              <div class="cbt-method">${e.c2t}</div>
+              <div class="cbt-desc">${e.c2}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="background:${e.light};border-left:3px solid ${e.color};border-radius:8px;padding:10px 14px">
+        <div class="ecd-section-label" style="margin-bottom:4px">💬 이렇게 표현해요</div>
+        <div class="ecd-section-text">${e.exp}</div>
+      </div>
+    </div>
+  `;
+}
+
+// =============================================
+// 🔢 점수 슬라이더
+// =============================================
+const scoreLabels = ['전혀 몰랐어요','거의 몰랐어요','희미하게 알아챘어요','조금 알아챘어요','알아챘어요','보통이에요','꽤 알아챘어요','많이 알아챘어요','잘 알아챘어요','거의 완전히 알아챘어요','완전히 알아챘어요'];
+const scoreColors = ['#D3D1C7','#C5C5C0','#B5D4F4','#9FE1CB','#5DCAA5','#FAC775','#F5C4B3','#F4C0D1','#F09595','#CECBF6','#888780'];
+
+function updateScore(v) {
+  state.score = parseInt(v);
+  document.getElementById('scoreNumber').textContent = v;
+  document.getElementById('scoreNumber').style.color = scoreColors[v];
+  document.getElementById('scoreLabel').textContent = scoreLabels[v];
+}
+
+// =============================================
+// 🧭 스텝 이동
+// =============================================
+function goStep(n) {
+  if (n === 1) {
+    state.situation = document.getElementById('situationText').value.trim();
+    if (!state.situation) { showToast('상황을 입력해 주세요 😊'); return; }
+    renderGrid('전체');
+  }
+  if (n === 2) {
+    if (!state.emotion) { showToast('감정을 선택해 주세요'); return; }
+    renderEmotionCard(state.emotion);
+  }
+  if (n === 3) {
+    state.thought  = document.getElementById('thoughtInput').value;
+    state.action2  = document.getElementById('actionInput').value;
+    state.face2    = document.getElementById('faceInput').value;
+    state.body     = document.getElementById('bodyInput').value;
+  }
+
+  document.querySelectorAll('.step-panel').forEach((p,i) => {
+    p.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.step-dot').forEach((d,i) => {
+    d.classList.remove('active','done');
+    if (i === n) d.classList.add('active');
+    else if (i < n) d.classList.add('done');
+  });
+  state.step = n;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// =============================================
+// ✅ 제출
+// =============================================
+async function submitDiary() {
+  state.score = parseInt(document.getElementById('scoreSlider').value);
+  state.memo  = document.getElementById('memoInput').value;
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  const payload = {
+    제출날짜: dateStr,
+    상황: state.situation,
+    선택한감정: state.emotion ? state.emotion.name : '',
+    생각: state.thought,
+    행동: state.action2,
+    표정몸: state.face2,
+    신체감각: state.body,
+    인식점수: state.score,
+    메모: state.memo
+  };
+
+  // 구글 시트 전송 (URL이 설정된 경우)
+  if (GOOGLE_SHEET_URL && !GOOGLE_SHEET_URL.includes('여기에')) {
+    try {
+      await fetch(GOOGLE_SHEET_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+    } catch(e) { console.log('전송 오류:', e); }
+  }
+
+  // 요약 렌더
+  renderSummary(payload);
+  goStep(4);
+}
+
+function renderSummary(p) {
+  const e = state.emotion;
+  document.getElementById('summaryCard').innerHTML = `
+    <div class="summary-row">
+      <span class="summary-key">날짜</span>
+      <span class="summary-val">${p.제출날짜}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-key">상황</span>
+      <span class="summary-val">${p.상황}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-key">감정</span>
+      <span class="summary-val">
+        <span style="display:inline-block;padding:2px 10px;border-radius:20px;background:${e.light};font-weight:700;font-size:13px">${e.name}</span>
+      </span>
+    </div>
+    ${p.생각 ? `<div class="summary-row"><span class="summary-key">생각</span><span class="summary-val">${p.생각}</span></div>` : ''}
+    ${p.행동 ? `<div class="summary-row"><span class="summary-key">행동</span><span class="summary-val">${p.행동}</span></div>` : ''}
+    <div class="summary-row">
+      <span class="summary-key">인식점수</span>
+      <span class="summary-val"><strong style="font-size:18px">${p.인식점수}</strong> / 10</span>
+    </div>
+    ${p.메모 ? `<div class="summary-row"><span class="summary-key">메모</span><span class="summary-val">${p.메모}</span></div>` : ''}
+  `;
+}
+
+// =============================================
+// 🔧 유틸
+// =============================================
+function quickTag(el, text) {
+  document.querySelectorAll('.quick-tag').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  const ta = document.getElementById('situationText');
+  ta.value = text;
+  updateChar();
+}
+
+function updateChar() {
+  const v = document.getElementById('situationText').value;
+  document.getElementById('charCount').textContent = v.length;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function restart() {
+  state = { step:0, situation:'', emotion:null, thought:'', action2:'', face2:'', body:'', score:5, memo:'' };
+  document.getElementById('situationText').value = '';
+  document.getElementById('thoughtInput').value = '';
+  document.getElementById('actionInput').value = '';
+  document.getElementById('faceInput').value = '';
+  document.getElementById('bodyInput').value = '';
+  document.getElementById('memoInput').value = '';
+  document.getElementById('scoreSlider').value = 5;
+  document.getElementById('scoreNumber').textContent = '5';
+  document.getElementById('scoreLabel').textContent = '보통이에요';
+  document.getElementById('btn1').disabled = true;
+  document.querySelectorAll('.quick-tag').forEach(t => t.classList.remove('selected'));
+  updateChar();
+  goStep(0);
+}
+
+// 초기화
+renderGrid('전체');
+</script>
+</body>
+</html>
